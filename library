@@ -1,0 +1,849 @@
+-- // FEDW UI LIBRARY - STRIPPED & CLEAN
+-- // Easy to use UI library for adding your own features
+
+-- // SERVICES & UTILITIES
+local players = game:GetService("Players")
+local localPlayer = players.LocalPlayer
+local uis = game:GetService("UserInputService")
+local ws = game:GetService("Workspace")
+local camera = ws.CurrentCamera
+local tween_service = game:GetService("TweenService")
+local gui_service = game:GetService("GuiService")
+
+-- // SHORTCUTS
+local vec2 = Vector2.new
+local dim2 = UDim2.new
+local dim = UDim.new
+local rect = Rect.new
+local cfr = CFrame.new
+local rgb = Color3.fromRGB
+
+local insert = table.insert
+local find = table.find
+local remove = table.remove
+
+-- // GLOBAL FLAGS TABLE (stores all your settings)
+local flags = {}
+local config_flags = {}
+
+-- // LIBRARY INITIALIZATION
+local library = {
+    directory = "fedw",
+    flags = flags,
+    config_flags = config_flags,
+    connections = {},
+    guis = {},
+    current_tab = nil,
+    current_element_open = nil,
+}
+
+-- // COLOR THEME (BLACK & WHITE)
+local themes = {
+    preset = {
+        ["outline"] = rgb(0, 0, 0),
+        ["inline"] = rgb(20, 20, 20),
+        ["accent"] = rgb(255, 255, 255),
+        ["high_contrast"] = rgb(10, 10, 10),
+        ["low_contrast"] = rgb(30, 30, 30),
+        ["text"] = rgb(255, 255, 255),
+        ["text_outline"] = rgb(0, 0, 0),
+        ["glow"] = rgb(100, 100, 100),
+    },
+    utility = {
+        ["outline"] = {["BackgroundColor3"] = {}, ["Color"] = {}},
+        ["inline"] = {["BackgroundColor3"] = {}},
+        ["accent"] = {["BackgroundColor3"] = {}, ["TextColor3"] = {}, ["ImageColor3"] = {}, ["ScrollBarImageColor3"] = {}},
+        ["contrast"] = {["Color"] = {}},
+        ["text"] = {["TextColor3"] = {}},
+        ["text_outline"] = {["Color"] = {}},
+        ["glow"] = {["ImageColor3"] = {}},
+    },
+}
+
+-- // UTILITY FUNCTIONS
+function library:connection(signal, callback)
+    local connection = signal:Connect(callback)
+    insert(self.connections, connection)
+    return connection
+end
+
+function library:tween(obj, properties)
+    local tween = tween_service:Create(obj, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), properties):Play()
+    return tween
+end
+
+function library:apply_theme(instance, theme, property)
+    insert(themes.utility[theme][property], instance)
+end
+
+function library:create(instance, options)
+    local ins = Instance.new(instance)
+    for prop, value in next, options do
+        ins[prop] = value
+    end
+    if instance == "TextLabel" or instance == "TextButton" or instance == "TextBox" then
+        library:apply_theme(ins, "text", "TextColor3")
+    elseif instance == "ScreenGui" then
+        insert(library.guis, ins)
+    end
+    return ins
+end
+
+function library:draggify(frame)
+    local dragging = false
+    local start_size = frame.Position
+    local start
+
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            start = input.Position
+            start_size = frame.Position
+        end
+    end)
+
+    frame.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+
+    library:connection(uis.InputChanged, function(input, game_event)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local viewport_x = camera.ViewportSize.X
+            local viewport_y = camera.ViewportSize.Y
+            frame.Position = dim2(0, math.clamp(start_size.X.Offset + (input.Position.X - start.X), 0, viewport_x - frame.Size.X.Offset),
+                0, math.clamp(start_size.Y.Offset + (input.Position.Y - start.Y), 0, viewport_y - frame.Size.Y.Offset))
+        end
+    end)
+end
+
+local function parentUI(gui)
+    local success = pcall(function()
+        if get_hidden_gui or gethui then
+            gui.Parent = (get_hidden_gui or gethui)()
+        elseif syn and syn.protect_gui then
+            syn.protect_gui(gui)
+            gui.Parent = game:GetService("CoreGui")
+        else
+            gui.Parent = game:GetService("CoreGui")
+        end
+    end)
+    if not success then
+        gui.Parent = localPlayer:WaitForChild("PlayerGui")
+    end
+end
+
+-- // WINDOW CREATION
+function library:window(properties)
+    local window = {}
+    
+    local sgui = self:create("ScreenGui", {
+        Enabled = true,
+        Parent = nil,
+        Name = "",
+        DisplayOrder = 2,
+    })
+    parentUI(sgui)
+
+    local main_holder = self:create("Frame", {
+        Parent = sgui,
+        Name = "",
+        AnchorPoint = vec2(0, 0),
+        Position = properties.position or dim2(0, 100, 0, 100),
+        Active = true,
+        BorderColor3 = rgb(0, 0, 0),
+        Size = properties.size or dim2(0, 614, 0, 639),
+        BorderSizePixel = 0,
+        BackgroundColor3 = themes.preset.outline
+    })
+
+    library:draggify(main_holder)
+
+    local window_inline = self:create("Frame", {
+        Parent = main_holder,
+        Position = dim2(0, 1, 0, 1),
+        BorderColor3 = rgb(0, 0, 0),
+        Size = dim2(1, -2, 1, -2),
+        BorderSizePixel = 0,
+        BackgroundColor3 = themes.preset.accent
+    })
+
+    local window_holder = self:create("Frame", {
+        Parent = window_inline,
+        Position = dim2(0, 1, 0, 1),
+        BorderColor3 = rgb(0, 0, 0),
+        Size = dim2(1, -2, 1, -2),
+        BorderSizePixel = 0,
+        BackgroundColor3 = rgb(255, 255, 255)
+    })
+
+    local UIGradient = self:create("UIGradient", {
+        Parent = window_holder,
+        Rotation = 90,
+        Color = ColorSequence.new{ColorSequenceKeypoint.new(0, rgb(41, 41, 55)), ColorSequenceKeypoint.new(1, rgb(35, 35, 47))}
+    })
+
+    local title_text = self:create("TextLabel", {
+        Parent = window_holder,
+        FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Regular),
+        TextColor3 = themes.preset.text,
+        BorderColor3 = rgb(0, 0, 0),
+        Text = properties.name or "Window",
+        BackgroundTransparency = 1,
+        Position = dim2(0, 5, 0, 5),
+        BorderSizePixel = 0,
+        AutomaticSize = Enum.AutomaticSize.XY,
+        TextSize = 14,
+        BackgroundColor3 = rgb(255, 255, 255)
+    })
+
+    local tab_holder = self:create("Frame", {
+        Parent = window_holder,
+        Name = " ",
+        BackgroundTransparency = 1,
+        Size = dim2(1, 0, 0, 25),
+        Position = dim2(0, 0, 0, 20),
+        BorderColor3 = rgb(0, 0, 0),
+        ZIndex = 5,
+        BorderSizePixel = 0,
+        BackgroundColor3 = rgb(255, 255, 255)
+    })
+
+    self:create("UIListLayout", {
+        Parent = tab_holder,
+        FillDirection = Enum.FillDirection.Horizontal,
+        HorizontalFlex = Enum.UIFlexAlignment.Fill,
+        Padding = dim(0, 2),
+        SortOrder = Enum.SortOrder.LayoutOrder
+    })
+
+    local section_holder = self:create("Frame", {
+        Parent = window_holder,
+        Name = " ",
+        BackgroundTransparency = 1,
+        Position = dim2(0, 0, 0, 45),
+        BorderColor3 = rgb(0, 0, 0),
+        Size = dim2(1, 0, 1, -45),
+        BorderSizePixel = 0,
+        BackgroundColor3 = rgb(255, 255, 255)
+    })
+
+    window.tab_holder = tab_holder
+    window.section_holder = section_holder
+    window.main = sgui
+
+    setmetatable(window, {__index = library})
+    return window
+end
+
+-- // TAB CREATION
+function library:tab(options)
+    local cfg = {
+        name = options.name or "tab",
+        enabled = false,
+    }
+
+    local tab_button = self:create("TextButton", {
+        Parent = self.tab_holder,
+        FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Regular),
+        TextColor3 = themes.preset.text,
+        BorderColor3 = rgb(0, 0, 0),
+        Text = "",
+        Name = "\\0",
+        BorderSizePixel = 0,
+        Size = dim2(0, 0, 1, -2),
+        ZIndex = 5,
+        TextSize = 12,
+        BackgroundColor3 = themes.preset.outline,
+        AutoButtonColor = false
+    })
+
+    local background = self:create("Frame", {
+        Parent = tab_button,
+        Position = dim2(0, 1, 0, 1),
+        BorderColor3 = rgb(0, 0, 0),
+        Size = dim2(1, -2, 1, 0),
+        BorderSizePixel = 0,
+        BackgroundColor3 = rgb(255, 255, 255)
+    })
+
+    local UIGradient = self:create("UIGradient", {
+        Parent = background,
+        Rotation = 90,
+        Color = ColorSequence.new{ColorSequenceKeypoint.new(0, rgb(41, 41, 55)), ColorSequenceKeypoint.new(1, rgb(35, 35, 47))}
+    })
+
+    local text = self:create("TextLabel", {
+        Parent = background,
+        FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Regular),
+        TextColor3 = themes.preset.text,
+        BorderColor3 = rgb(0, 0, 0),
+        Text = cfg.name,
+        Name = "\\0",
+        BackgroundTransparency = 1,
+        Size = dim2(1, 0, 1, 0),
+        BorderSizePixel = 0,
+        AutomaticSize = Enum.AutomaticSize.X,
+        TextSize = 12,
+        ZIndex = 5,
+        BackgroundColor3 = rgb(255, 255, 255)
+    })
+
+    local section = self:create("Frame", {
+        Parent = self.section_holder,
+        BackgroundTransparency = 1,
+        Name = "\\0",
+        BorderColor3 = rgb(0, 0, 0),
+        Size = dim2(1, 0, 1, 0),
+        BorderSizePixel = 0,
+        Visible = false,
+        BackgroundColor3 = rgb(255, 255, 255)
+    })
+
+    cfg.holder = section
+    
+    self:create("UIListLayout", {
+        Parent = section,
+        FillDirection = Enum.FillDirection.Horizontal,
+        HorizontalFlex = Enum.UIFlexAlignment.Fill,
+        Padding = dim(0, 4),
+        SortOrder = Enum.SortOrder.LayoutOrder
+    })
+
+    function cfg.open_tab()
+        if library.current_tab and library.current_tab ~= section then
+            library.current_tab.Visible = false
+        end
+        library.current_tab = section
+        section.Visible = true
+    end
+
+    tab_button.MouseButton1Click:Connect(cfg.open_tab)
+
+    return setmetatable(cfg, {__index = library})
+end
+
+-- // COLUMN CREATION (for organizing sections side-by-side)
+function library:column(path)
+    local cfg = {}
+    local holder = path and self[path] or self.holder
+
+    local column = self:create("Frame", {
+        Parent = holder,
+        BackgroundTransparency = 1,
+        Name = "\\0",
+        BorderColor3 = rgb(0, 0, 0),
+        Size = dim2(1, 0, 1, 0),
+        BorderSizePixel = 0,
+        BackgroundColor3 = themes.preset.inline
+    })
+
+    self:create("UIListLayout", {
+        Parent = column,
+        Padding = dim(0, 4),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        VerticalFlex = Enum.UIFlexAlignment.Fill
+    })
+
+    cfg.holder = column
+    return setmetatable(cfg, {__index = library})
+end
+
+-- // SECTION CREATION
+function library:section(options)
+    local cfg = {name = options.name or "Section"}
+
+    local section = self:create("Frame", {
+        Parent = self.holder,
+        Name = "\\0",
+        BorderColor3 = rgb(0, 0, 0),
+        Size = dim2(1, 0, 1, 0),
+        BorderSizePixel = 0,
+        BackgroundColor3 = themes.preset.inline
+    })
+
+    local inline = self:create("Frame", {
+        Parent = section,
+        Position = dim2(0, 1, 0, 1),
+        BorderColor3 = rgb(0, 0, 0),
+        Size = dim2(1, -2, 1, -2),
+        BorderSizePixel = 0,
+        BackgroundColor3 = themes.preset.outline
+    })
+
+    local background = self:create("Frame", {
+        Parent = inline,
+        Position = dim2(0, 1, 0, 1),
+        BorderColor3 = rgb(0, 0, 0),
+        Size = dim2(1, -2, 1, -2),
+        BorderSizePixel = 0,
+        BackgroundColor3 = rgb(255, 255, 255)
+    })
+
+    local title = self:create("TextLabel", {
+        Parent = background,
+        FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Regular),
+        TextColor3 = themes.preset.text,
+        BorderColor3 = rgb(0, 0, 0),
+        Text = cfg.name,
+        Name = "\\0",
+        BackgroundTransparency = 1,
+        Position = dim2(0, 6, 0, 4),
+        BorderSizePixel = 0,
+        AutomaticSize = Enum.AutomaticSize.XY,
+        TextSize = 12,
+        BackgroundColor3 = rgb(255, 255, 255)
+    })
+
+    local elements = self:create("Frame", {
+        Parent = background,
+        Name = "\\0",
+        BorderColor3 = rgb(0, 0, 0),
+        Size = dim2(1, 0, 0, 0),
+        Position = dim2(0, 0, 0, 20),
+        BorderSizePixel = 0,
+        BackgroundColor3 = rgb(255, 255, 255)
+    })
+
+    cfg.holder = elements
+
+    self:create("UIListLayout", {
+        Parent = elements,
+        Padding = dim(0, 4),
+        HorizontalAlignment = Enum.HorizontalAlignment.Center,
+        SortOrder = Enum.SortOrder.LayoutOrder
+    })
+
+    return setmetatable(cfg, {__index = library})
+end
+
+-- // TOGGLE CREATION
+function library:toggle(options)
+    local cfg = {
+        name = options.name or "Toggle",
+        flag = options.flag or "toggle_" .. math.random(1, 9999),
+        default = options.default or false,
+        callback = options.callback or function() end,
+    }
+
+    flags[cfg.flag] = cfg.default
+
+    local toggle_holder = self:create("TextButton", {
+        Parent = self.holder,
+        FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Regular),
+        TextColor3 = rgb(151, 151, 151),
+        BorderColor3 = rgb(0, 0, 0),
+        Text = "",
+        Name = "toggle",
+        ZIndex = 1,
+        Size = dim2(1, -8, 0, 12),
+        BorderSizePixel = 0,
+        BackgroundTransparency = 1,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        AutomaticSize = Enum.AutomaticSize.Y,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        TextSize = 12,
+        BackgroundColor3 = rgb(255, 255, 255)
+    })
+
+    local left_components = self:create("Frame", {
+        Parent = toggle_holder,
+        BackgroundTransparency = 1,
+        Position = dim2(0, 0, 0, 0),
+        BorderColor3 = rgb(0, 0, 0),
+        Size = dim2(0, 0, 0, 14),
+        BorderSizePixel = 0,
+        BackgroundColor3 = rgb(255, 255, 255)
+    })
+
+    local text = self:create("TextLabel", {
+        Parent = left_components,
+        FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Regular),
+        TextColor3 = themes.preset.text,
+        BorderColor3 = rgb(0, 0, 0),
+        Text = cfg.name,
+        BackgroundTransparency = 1,
+        Size = dim2(0, 0, 1, -1),
+        BorderSizePixel = 0,
+        AutomaticSize = Enum.AutomaticSize.X,
+        TextSize = 12,
+        BackgroundColor3 = rgb(255, 255, 255)
+    })
+
+    self:create("UIListLayout", {
+        Parent = left_components,
+        Padding = dim(0, 5),
+        FillDirection = Enum.FillDirection.Horizontal
+    })
+
+    local right_components = self:create("Frame", {
+        Parent = toggle_holder,
+        Position = dim2(1, -1, 0, 1),
+        BorderColor3 = rgb(0, 0, 0),
+        Size = dim2(0, 0, 0, 12),
+        BorderSizePixel = 0,
+        BackgroundColor3 = rgb(255, 255, 255)
+    })
+
+    local toggle_button = self:create("TextButton", {
+        Parent = left_components,
+        Text = "",
+        AutoButtonColor = false,
+        Position = dim2(0, 0, 0, 2),
+        BorderColor3 = rgb(0, 0, 0),
+        Size = dim2(0, 14, 0, 14),
+        BorderSizePixel = 0,
+        ZIndex = 1,
+        BackgroundColor3 = themes.preset.outline
+    })
+
+    local toggle_bg = self:create("Frame", {
+        Parent = toggle_button,
+        Position = dim2(0, 1, 0, 1),
+        BorderColor3 = rgb(0, 0, 0),
+        Size = dim2(1, -2, 1, -2),
+        BorderSizePixel = 0,
+        BackgroundColor3 = themes.preset.inline
+    })
+
+    local toggle_fill = self:create("Frame", {
+        Parent = toggle_bg,
+        Position = dim2(0, 1, 0, 1),
+        BorderColor3 = rgb(0, 0, 0),
+        Size = dim2(1, -2, 1, -2),
+        BorderSizePixel = 0,
+        BackgroundColor3 = themes.preset.accent
+    })
+
+    cfg.right_holder = right_components
+
+    function cfg.set(value)
+        flags[cfg.flag] = value
+        toggle_fill.BackgroundColor3 = value and themes.preset.accent or themes.preset.inline
+        cfg.callback(value)
+    end
+
+    toggle_button.MouseButton1Click:Connect(function()
+        cfg.set(not flags[cfg.flag])
+    end)
+
+    cfg.set(cfg.default)
+    config_flags[cfg.flag] = cfg.set
+
+    return setmetatable(cfg, {__index = library})
+end
+
+-- // SLIDER CREATION
+function library:slider(options)
+    local cfg = {
+        name = options.name or "Slider",
+        flag = options.flag or "slider_" .. math.random(1, 9999),
+        min = options.min or 0,
+        max = options.max or 100,
+        default = options.default or 50,
+        interval = options.interval or 1,
+        callback = options.callback or function() end,
+        value = options.default or 50,
+    }
+
+    flags[cfg.flag] = cfg.default
+
+    local slider_holder = self:create("TextLabel", {
+        Parent = self.holder,
+        FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Regular),
+        TextColor3 = themes.preset.text,
+        BorderColor3 = rgb(0, 0, 0),
+        Text = "",
+        Name = "slider",
+        ZIndex = 2,
+        Size = dim2(1, -8, 0, 12),
+        BorderSizePixel = 0,
+        BackgroundTransparency = 1,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        AutomaticSize = Enum.AutomaticSize.Y,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        TextSize = 12,
+        BackgroundColor3 = rgb(255, 255, 255)
+    })
+
+    local left_text = self:create("TextLabel", {
+        Parent = slider_holder,
+        FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Regular),
+        TextColor3 = themes.preset.text,
+        BorderColor3 = rgb(0, 0, 0),
+        Text = cfg.name,
+        BackgroundTransparency = 1,
+        Size = dim2(0, 0, 1, -1),
+        BorderSizePixel = 0,
+        AutomaticSize = Enum.AutomaticSize.X,
+        TextSize = 12,
+        BackgroundColor3 = rgb(255, 255, 255)
+    })
+
+    local slider_bar = self:create("TextButton", {
+        Parent = slider_holder,
+        Position = dim2(0, 0, 0, 15),
+        BorderColor3 = rgb(0, 0, 0),
+        Size = dim2(1, 0, 0, 12),
+        BorderSizePixel = 0,
+        BackgroundColor3 = themes.preset.outline,
+        Text = "",
+        AutoButtonColor = false,
+    })
+
+    local slider_fill = self:create("Frame", {
+        Parent = slider_bar,
+        Position = dim2(0, 1, 0, 1),
+        BorderColor3 = rgb(0, 0, 0),
+        Size = dim2((cfg.default - cfg.min) / (cfg.max - cfg.min), 0, 1, -2),
+        BorderSizePixel = 0,
+        BackgroundColor3 = themes.preset.accent
+    })
+
+    local slider_value = self:create("TextLabel", {
+        Parent = slider_fill,
+        FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Regular),
+        TextColor3 = themes.preset.text,
+        BorderColor3 = rgb(0, 0, 0),
+        Text = tostring(cfg.default),
+        Size = dim2(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Position = dim2(0, 2, 0, -1),
+        BorderSizePixel = 0,
+        TextSize = 10,
+        BackgroundColor3 = rgb(255, 255, 255)
+    })
+
+    local dragging = false
+
+    function cfg.set(value)
+        cfg.value = math.clamp(value, cfg.min, cfg.max)
+        slider_fill.Size = dim2((cfg.value - cfg.min) / (cfg.max - cfg.min), 0, 1, -2)
+        slider_value.Text = tostring(cfg.value)
+        flags[cfg.flag] = cfg.value
+        cfg.callback(flags[cfg.flag])
+    end
+
+    slider_bar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+        end
+    end)
+
+    uis.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+
+    uis.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local size_x = (input.Position.X - slider_bar.AbsolutePosition.X) / slider_bar.AbsoluteSize.X
+            local value = ((cfg.max - cfg.min) * size_x) + cfg.min
+            cfg.set(value)
+        end
+    end)
+
+    cfg.set(cfg.default)
+    config_flags[cfg.flag] = cfg.set
+
+    return setmetatable(cfg, {__index = library})
+end
+
+-- // DROPDOWN CREATION
+function library:dropdown(options)
+    local cfg = {
+        name = options.name or "Dropdown",
+        flag = options.flag or "dropdown_" .. math.random(1, 9999),
+        items = options.items or {"Option 1", "Option 2"},
+        default = options.default or options.items[1],
+        callback = options.callback or function() end,
+        open = false,
+    }
+
+    flags[cfg.flag] = cfg.default
+
+    local dropdown = self:create("TextButton", {
+        Parent = self.holder,
+        Position = dim2(0, 0, 0, 0),
+        BorderColor3 = rgb(0, 0, 0),
+        Size = dim2(1, -8, 0, 18),
+        BorderSizePixel = 0,
+        BackgroundColor3 = themes.preset.outline,
+        Text = "",
+        AutoButtonColor = false,
+    })
+
+    local dd_bg = self:create("Frame", {
+        Parent = dropdown,
+        Position = dim2(0, 1, 0, 1),
+        BorderColor3 = rgb(0, 0, 0),
+        Size = dim2(1, -2, 1, -2),
+        BorderSizePixel = 0,
+        BackgroundColor3 = themes.preset.inline
+    })
+
+    local dd_fill = self:create("Frame", {
+        Parent = dd_bg,
+        Position = dim2(0, 1, 0, 1),
+        BorderColor3 = rgb(0, 0, 0),
+        Size = dim2(1, -2, 1, -2),
+        BorderSizePixel = 0,
+        BackgroundColor3 = themes.preset.accent
+    })
+
+    local text_label = self:create("TextLabel", {
+        Parent = dd_fill,
+        FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Regular),
+        TextColor3 = themes.preset.text,
+        Text = cfg.default,
+        Size = dim2(1, -4, 1, 0),
+        BackgroundTransparency = 1,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Position = dim2(0, 4, 0, -1),
+        BorderSizePixel = 0,
+        TextSize = 12,
+        BackgroundColor3 = rgb(255, 255, 255)
+    })
+
+    local sgui = self:create("ScreenGui", {Enabled = true, Parent = nil, DisplayOrder = 999})
+    parentUI(sgui)
+
+    local dropdown_menu = self:create("Frame", {
+        Parent = sgui,
+        Position = dim2(0, dropdown.AbsolutePosition.X, 0, dropdown.AbsolutePosition.Y + 20),
+        BorderColor3 = rgb(0, 0, 0),
+        Size = dim2(0, dropdown.AbsoluteSize.X, 0, 0),
+        BorderSizePixel = 0,
+        BackgroundColor3 = themes.preset.outline,
+        Visible = false,
+        AutomaticSize = Enum.AutomaticSize.Y,
+    })
+
+    local menu_content = self:create("Frame", {
+        Parent = dropdown_menu,
+        Position = dim2(0, 1, 0, 1),
+        BorderColor3 = rgb(0, 0, 0),
+        Size = dim2(1, -2, 1, -2),
+        BorderSizePixel = 0,
+        BackgroundColor3 = rgb(255, 255, 255)
+    })
+
+    local UIGradient = self:create("UIGradient", {
+        Parent = menu_content,
+        Rotation = 90,
+        Color = ColorSequence.new{ColorSequenceKeypoint.new(0, rgb(41, 41, 55)), ColorSequenceKeypoint.new(1, rgb(35, 35, 47))}
+    })
+
+    self:create("UIListLayout", {
+        Parent = menu_content,
+        Padding = dim(0, 2),
+        SortOrder = Enum.SortOrder.LayoutOrder
+    })
+
+    self:create("UIPadding", {
+        Parent = menu_content,
+        PaddingTop = dim(0, 2),
+        PaddingBottom = dim(0, 2),
+    })
+
+    for i, item in ipairs(cfg.items) do
+        local option = self:create("TextButton", {
+            Parent = menu_content,
+            FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Regular),
+            TextColor3 = themes.preset.text,
+            Text = item,
+            Size = dim2(1, 0, 0, 16),
+            BackgroundColor3 = themes.preset.inline,
+            BorderSizePixel = 0,
+            AutoButtonColor = false,
+        })
+
+        option.MouseButton1Click:Connect(function()
+            cfg.set(item)
+            cfg.open = false
+            dropdown_menu.Visible = false
+        end)
+    end
+
+    function cfg.set(value)
+        flags[cfg.flag] = value
+        text_label.Text = value
+        cfg.callback(value)
+    end
+
+    function cfg.set_visible(bool)
+        dropdown_menu.Visible = bool
+        dropdown_menu.Position = dim2(0, dropdown.AbsolutePosition.X, 0, dropdown.AbsolutePosition.Y + 20)
+    end
+
+    dropdown.MouseButton1Click:Connect(function()
+        cfg.open = not cfg.open
+        cfg.set_visible(cfg.open)
+    end)
+
+    cfg.set(cfg.default)
+    config_flags[cfg.flag] = cfg.set
+
+    return setmetatable(cfg, {__index = library})
+end
+
+-- // KEYBIND CREATION
+function library:keybind(options)
+    local cfg = {
+        name = options.name or "Keybind",
+        flag = options.flag or "keybind_" .. math.random(1, 9999),
+        key = options.key or nil,
+        mode = options.mode or "toggle",
+        callback = options.callback or function() end,
+        binding = false,
+    }
+
+    flags[cfg.flag] = {key = cfg.key, mode = cfg.mode, active = false}
+
+    local keybind_button = self:create("TextButton", {
+        Parent = self.right_holder or self.holder,
+        Text = "",
+        AutoButtonColor = false,
+        BorderColor3 = rgb(0, 0, 0),
+        Size = dim2(0, 24, 0, 14),
+        BorderSizePixel = 0,
+        BackgroundColor3 = themes.preset.outline,
+    })
+
+    local key_text = self:create("TextLabel", {
+        Parent = keybind_button,
+        FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Regular),
+        TextColor3 = themes.preset.text,
+        Text = cfg.key and cfg.key.Name or "...",
+        Size = dim2(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        TextSize = 10,
+        BorderSizePixel = 0,
+    })
+
+    function cfg.set(key)
+        cfg.key = key
+        key_text.Text = key.Name or "..."
+        flags[cfg.flag].key = key
+        cfg.callback(key)
+    end
+
+    keybind_button.MouseButton1Down:Connect(function()
+        cfg.binding = true
+        key_text.Text = "..."
+        local connection
+        connection = uis.InputBegan:Connect(function(input, gpe)
+            if not gpe and cfg.binding then
+                cfg.set(input.KeyCode ~= Enum.KeyCode.Unknown and input.KeyCode or input.UserInputType)
+                cfg.binding = false
+                connection:Disconnect()
+            end
+        end)
+    end)
+
+    return setmetatable(cfg, {__index = library})
+end
+
+return library
