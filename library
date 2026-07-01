@@ -420,7 +420,6 @@ function library:window(properties)
         local tab_button = library:create("TextButton", {
             Parent = window.tab_holder,
             Name = tab_name,
-            FontSize = Enum.FontSize.Size13,
             TextColor3 = themes.preset.text,
             Text = tab_name,
             BackgroundColor3 = themes.preset.outline,
