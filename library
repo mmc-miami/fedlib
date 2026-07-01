@@ -297,7 +297,7 @@ function library:panel(options)
         Position = dim2(0, 2, 0, 4),
         BorderSizePixel = 0,
         AutomaticSize = Enum.AutomaticSize.XY,
-        TextSize = 12,
+        TextSize = 9,
         BackgroundColor3 = rgb(255, 255, 255)
     })
 
@@ -427,7 +427,7 @@ function library:window(properties)
             BorderColor3 = rgb(0, 0, 0),
             Size = dim2(0, 0, 1, 0),
             BorderSizePixel = 0,
-            TextSize = 12,
+            TextSize = 10,
             BackgroundTransparency = 0,
             AutoButtonColor = false,
         })
@@ -573,7 +573,7 @@ function library:toggle(options)
         Position = dim2(0, 4, 0, 0),
         Size = dim2(1, -8, 1, 0),
         BorderSizePixel = 0,
-        TextSize = 12,
+        TextSize = 10,
         TextXAlignment = Enum.TextXAlignment.Left,
     })
 
@@ -587,7 +587,7 @@ function library:toggle(options)
         Position = dim2(1, -18, 0, 1),
         Size = dim2(0, 16, 0, 16),
         BorderSizePixel = 0,
-        TextSize = 12,
+        TextSize = 10,
         AutoButtonColor = false,
     })
 
@@ -654,7 +654,7 @@ function library:slider(options)
         Position = dim2(0, 2, 0, -1),
         Size = dim2(0.5, 0, 0, 14),
         BorderSizePixel = 0,
-        TextSize = 12,
+        TextSize = 10,
     })
 
     local value_label = library:create("TextLabel", {
@@ -666,7 +666,7 @@ function library:slider(options)
         Position = dim2(0.5, 0, 0, -1),
         Size = dim2(0.5, 0, 0, 14),
         BorderSizePixel = 0,
-        TextSize = 12,
+        TextSize = 10,
         TextXAlignment = Enum.TextXAlignment.Right,
     })
 
@@ -756,7 +756,7 @@ function library:button(options)
         BorderColor3 = rgb(0, 0, 0),
         Size = dim2(1, -8, 0, 24),
         BorderSizePixel = 0,
-        TextSize = 12,
+        TextSize = 10,
         AutoButtonColor = false,
     })
 
@@ -814,7 +814,7 @@ function library:label(options)
         BorderColor3 = rgb(0, 0, 0),
         Size = dim2(1, -8, 0, 14),
         BorderSizePixel = 0,
-        TextSize = 12,
+        TextSize = 10,
         TextXAlignment = Enum.TextXAlignment.Left,
     })
 
@@ -854,7 +854,7 @@ function library:textbox(options)
         BorderColor3 = rgb(0, 0, 0),
         Size = dim2(1, 0, 0, 14),
         BorderSizePixel = 0,
-        TextSize = 12,
+        TextSize = 10,
         TextXAlignment = Enum.TextXAlignment.Left,
     })
 
@@ -868,7 +868,7 @@ function library:textbox(options)
         Position = dim2(0, 0, 0, 16),
         Size = dim2(1, 0, 0, 18),
         BorderSizePixel = 0,
-        TextSize = 12,
+        TextSize = 10,
         PlaceholderText = cfg.placeholder,
     })
 
